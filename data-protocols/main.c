@@ -9,7 +9,7 @@
 
 /* ******************************************************************
  ALTERNATING BIT AND GO-BACK-N NETWORK EMULATOR: VERSION 1.1  J.F.Kurose
-
+..
    This code should be used for PA2, unidirectional or bidirectional
    data transfer protocols (from A to B. Bidirectional transfer of data
    is for extra credit and is not required).  Network properties:
