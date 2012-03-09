@@ -6,6 +6,8 @@
  */
 
 #include <stdio.h>
+#include <string.h>
+//#include <stdlib.h>
 
 /* ******************************************************************
  ALTERNATING BIT AND GO-BACK-N NETWORK EMULATOR: VERSION 1.1  J.F.Kurose
@@ -44,12 +46,24 @@ struct pkt {
 /********* STUDENTS WRITE THE NEXT SEVEN ROUTINES *********/
 
 
-
+   // typedef struct pkt PKT;
 
 /* called from layer 5, passed the data to be sent to other side */
 A_output(message)
   struct msg message;
 {
+
+    int i;
+    struct pkt sending_pkt;
+    //sending_pkt=(struct pkt)malloc(sizeof(struct pkt));
+    
+    sending_pkt.checksum=1;
+    sending_pkt.seqnum=0;
+    sending_pkt.acknum=0;
+    for (i=0; i<20; i++)  
+                sending_pkt.payload[i] = message.data[i];
+    //strcpy(sending_pkt.payload,message.data);
+    tolayer3(0,sending_pkt);
 
 }
 
@@ -63,7 +77,7 @@ B_output(message)  /* need be completed only for extra credit */
 A_input(packet)
   struct pkt packet;
 {
-
+    printf("\nInside A' input\n");
 }
 
 /* called when A's timer goes off */
@@ -76,6 +90,7 @@ A_timerinterrupt()
 /* entity A routines are called. You can use it to do any initialization */
 A_init()
 {
+    printf("\nInside A's init\n");
 }
 
 
@@ -85,6 +100,9 @@ A_init()
 B_input(packet)
   struct pkt packet;
 {
+    printf("\nThe packet received from A");
+    tolayer5(1,packet.payload);
+    //printf("%d\n%d\n%s",packet.checksum,packet.seqnum,packet.payload);
 }
 
 /* called when B's timer goes off */
@@ -96,6 +114,7 @@ B_timerinterrupt()
 /* entity B routines are called. You can use it to do any initialization */
 B_init()
 {
+    printf("Inside B's init\n");
 }
 
 
@@ -148,7 +167,7 @@ int   ntolayer3;           /* number sent into layer 3 */
 int   nlost;               /* number lost in media */
 int ncorrupt;              /* number corrupted by media*/
 
-main()
+ main()
 {
    struct event *eventptr;
    struct msg  msg2give;
@@ -261,7 +280,7 @@ init()                         /* initialize the simulator */
     printf("It is likely that random number generation on your machine\n" ); 
     printf("is different from what this emulator expects.  Please take\n");
     printf("a look at the routine jimsrand() in the emulator code. Sorry. \n");
-    exit();
+    exit(0);
     }
 
    ntolayer3 = 0;
