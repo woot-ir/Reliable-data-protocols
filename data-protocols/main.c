@@ -66,9 +66,9 @@ A_output(message)
                 sending_pkt.payload[i] = message.data[i];
     
     tolayer3(0,sending_pkt);
-    printf("\nPacket sent to layer 3 from A\n");
+    printf("\nA_output:-Packet with sequence no %d sent to layer 3\n",sendingSeqNumCopy);
     starttimer(0,200.0);
-    printf("\nTimer start at A\n");
+    //printf("\nA_output:-Timer start at A\n");
 
 }
 
@@ -82,10 +82,10 @@ B_output(message)  /* need be completed only for extra credit */
 A_input(packet)
   struct pkt packet;
 {
-    printf("\nInside A's input received and ack %d\n",packet.acknum);
+    //printf("\n received an ack %d\n",packet.acknum);
     if(packet.checksum == 1 && packet.acknum == sendingSeqNumCopy)
     {
-        printf("\nReceived ack for pkt %d\n",packet.acknum);
+        printf("\nA's input:-Received ack for pkt %d\n",packet.acknum);
         stoptimer(0);
        
     }
@@ -115,28 +115,30 @@ A_init()
 /* Note that with simplex transfer from a-to-B, there is no B_output() */
 
 /* called from layer 3, when a packet arrives for layer 4 at B*/
-int receivingSeqNum=0;
+int receivingSeqNum;
 struct pkt receivingPkt;
 //int oncethrough=0;
 B_input(packet)
   struct pkt packet;
 {
-   
+   receivingSeqNum=0;
     if (packet.checksum == 1 && packet.seqnum == receivingSeqNum)
     {
+        printf("\nB_input:-The packet received from A is not corrupted and has seq no %d\n",receivingSeqNum);
         tolayer5(1,packet.payload);
-        printf("\nThe packet received from A is not corrupted\n and has seq no %d\n",receivingSeqNum);
         receivingPkt.acknum=receivingSeqNum;
         receivingPkt.checksum=1;
+        printf("\nB_input:-Sending ack %d",receivingSeqNum);
         tolayer3(1,receivingPkt);
         //oncethrough=1;
         
         receivingSeqNum++;
         receivingSeqNum = receivingSeqNum % 2;
     }
-    if (packet.checksum == 1 && packet.seqnum == ((receivingSeqNum + 1) % 2))
+    else if (packet.checksum == 1 && packet.seqnum == ((receivingSeqNum + 1) % 2))
     {
-        receivingPkt.acknum = receivingSeqNum;
+        printf("\n B_input:-Sending the ack %d",receivingSeqNum + 1);
+        receivingPkt.acknum = receivingSeqNum + 1;
         receivingPkt.checksum=1;
         tolayer3(1,receivingPkt);
     }
