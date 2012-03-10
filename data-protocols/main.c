@@ -47,23 +47,28 @@ struct pkt {
 
 
    // typedef struct pkt PKT;
-
+    struct pkt sending_pkt;
+    int sendingSeqNum=0;
+    int sendingSeqNumCopy=0;
+    
 /* called from layer 5, passed the data to be sent to other side */
 A_output(message)
   struct msg message;
 {
-
     int i;
-    struct pkt sending_pkt;
-    //sending_pkt=(struct pkt)malloc(sizeof(struct pkt));
-    
     sending_pkt.checksum=1;
-    sending_pkt.seqnum=0;
-    sending_pkt.acknum=0;
+    sending_pkt.seqnum=sendingSeqNum;
+    sendingSeqNumCopy=sendingSeqNum;
+    sendingSeqNum++;
+    sendingSeqNum = sendingSeqNum % 2;
+    
     for (i=0; i<20; i++)  
                 sending_pkt.payload[i] = message.data[i];
-    //strcpy(sending_pkt.payload,message.data);
+    
     tolayer3(0,sending_pkt);
+    printf("\nPacket sent to layer 3 from A\n");
+    starttimer(0,200.0);
+    printf("\nTimer start at A\n");
 
 }
 
@@ -77,13 +82,26 @@ B_output(message)  /* need be completed only for extra credit */
 A_input(packet)
   struct pkt packet;
 {
-    printf("\nInside A' input\n");
+    printf("\nInside A's input received and ack %d\n",packet.acknum);
+    if(packet.checksum == 1 && packet.acknum == sendingSeqNumCopy)
+    {
+        printf("\nReceived ack for pkt %d\n",packet.acknum);
+        stoptimer(0);
+       
+    }
+    else
+    {
+        printf("Inside A's input and inside else");
+        //include the code to see if the pkt is corrupt or if there is a drop
+    }
 }
 
 /* called when A's timer goes off */
 A_timerinterrupt()
 {
-
+    printf("\n Inside A's timerInterrupt\n ");
+    tolayer3(0,sending_pkt);
+    starttimer(0,200.0);
 }  
 
 /* the following routine will be called once (only) before any other */
@@ -97,11 +115,31 @@ A_init()
 /* Note that with simplex transfer from a-to-B, there is no B_output() */
 
 /* called from layer 3, when a packet arrives for layer 4 at B*/
+int receivingSeqNum=0;
+struct pkt receivingPkt;
+//int oncethrough=0;
 B_input(packet)
   struct pkt packet;
 {
-    printf("\nThe packet received from A");
-    tolayer5(1,packet.payload);
+   
+    if (packet.checksum == 1 && packet.seqnum == receivingSeqNum)
+    {
+        tolayer5(1,packet.payload);
+        printf("\nThe packet received from A is not corrupted\n and has seq no %d\n",receivingSeqNum);
+        receivingPkt.acknum=receivingSeqNum;
+        receivingPkt.checksum=1;
+        tolayer3(1,receivingPkt);
+        //oncethrough=1;
+        
+        receivingSeqNum++;
+        receivingSeqNum = receivingSeqNum % 2;
+    }
+    if (packet.checksum == 1 && packet.seqnum == ((receivingSeqNum + 1) % 2))
+    {
+        receivingPkt.acknum = receivingSeqNum;
+        receivingPkt.checksum=1;
+        tolayer3(1,receivingPkt);
+    }
     //printf("%d\n%d\n%s",packet.checksum,packet.seqnum,packet.payload);
 }
 
@@ -167,7 +205,7 @@ int   ntolayer3;           /* number sent into layer 3 */
 int   nlost;               /* number lost in media */
 int ncorrupt;              /* number corrupted by media*/
 
- main()
+ int main()
 {
    struct event *eventptr;
    struct msg  msg2give;
@@ -245,6 +283,7 @@ int ncorrupt;              /* number corrupted by media*/
 
 terminate:
    printf(" Simulator terminated at time %f\n after sending %d msgs from layer5\n",time,nsim);
+return 0;
    /*****************************************************************************************/
    /* Add your results here!!! *********************/
    /*****************************************************************************************/
