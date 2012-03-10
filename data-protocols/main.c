@@ -46,7 +46,37 @@ struct pkt {
 /********* STUDENTS WRITE THE NEXT SEVEN ROUTINES *********/
 
 
-   // typedef struct pkt PKT;
+int in_cksum(char *addr, int len)
+{
+    int nleft = len;
+    char *w = addr;
+    int answer;
+    int sum = 0; 
+    /*
+     *  My algorithm is simple, using a 32 bit accumulator (sum),
+     *  we add sequential 16 bit words to it, and at the end, fold
+     *  back all the carry bits from the top 16 bits into the lower
+     *  16 bits.
+     */
+    while (nleft > 1)  {
+        sum += *w++;
+        //printf("char:-%c\tvalue:-%d\n",*w,sum);
+        nleft -= 2;
+    }
+
+    /* mop up an odd byte, if necessary */
+    if (nleft == 1)
+        sum += *(char *)w;
+
+    /*
+     * add back carry outs from top 16 bits to low 16 bits
+     */
+    sum = (sum >> 16) + (sum & 0xffff); /* add hi 16 to low 16 */
+    sum += (sum >> 16);         /* add carry */
+    answer = ~sum;              /* truncate to 16 bits */
+    return (answer);
+}
+    
     struct pkt sending_pkt;
     int sendingSeqNum=0;
     int sendingSeqNumCopy=0;
@@ -56,7 +86,9 @@ A_output(message)
   struct msg message;
 {
     int i;
-    sending_pkt.checksum=1;
+    int sendingCheckSum=0;
+    sendingCheckSum = in_cksum(message.data,20);
+    sending_pkt.checksum=sendingCheckSum + sendingSeqNum;
     sending_pkt.seqnum=sendingSeqNum;
     sendingSeqNumCopy=sendingSeqNum;
     sendingSeqNum++;
@@ -67,8 +99,7 @@ A_output(message)
     
     tolayer3(0,sending_pkt);
     printf("\nA_output:-Packet with sequence no %d sent to layer 3\n",sendingSeqNumCopy);
-    starttimer(0,200.0);
-    //printf("\nA_output:-Timer start at A\n");
+    starttimer(0,100.0);
 
 }
 
@@ -83,7 +114,10 @@ A_input(packet)
   struct pkt packet;
 {
     //printf("\n received an ack %d\n",packet.acknum);
-    if(packet.checksum == 1 && packet.acknum == sendingSeqNumCopy)
+    int tempCheckSum;
+    tempCheckSum = sendingSeqNumCopy + 5;
+    printf("A's input\ttempchkSum-%d\tpktChkSum-%d",tempCheckSum,packet.checksum);
+    if(packet.checksum == tempCheckSum && packet.acknum == sendingSeqNumCopy)
     {
         printf("\nA's input:-Received ack for pkt %d\n",packet.acknum);
         stoptimer(0);
@@ -101,7 +135,7 @@ A_timerinterrupt()
 {
     printf("\n Inside A's timerInterrupt\n ");
     tolayer3(0,sending_pkt);
-    starttimer(0,200.0);
+    starttimer(0,100.0);
 }  
 
 /* the following routine will be called once (only) before any other */
@@ -115,33 +149,75 @@ A_init()
 /* Note that with simplex transfer from a-to-B, there is no B_output() */
 
 /* called from layer 3, when a packet arrives for layer 4 at B*/
-int receivingSeqNum;
-struct pkt receivingPkt;
-//int oncethrough=0;
+int receivingSeqNum = 0;
+struct pkt ackPkt;
+int oncethrough=0;
+int state=0;
 B_input(packet)
   struct pkt packet;
 {
-   receivingSeqNum=0;
-    if (packet.checksum == 1 && packet.seqnum == receivingSeqNum)
-    {
-        printf("\nB_input:-The packet received from A is not corrupted and has seq no %d\n",receivingSeqNum);
-        tolayer5(1,packet.payload);
-        receivingPkt.acknum=receivingSeqNum;
-        receivingPkt.checksum=1;
-        printf("\nB_input:-Sending ack %d",receivingSeqNum);
-        tolayer3(1,receivingPkt);
-        //oncethrough=1;
-        
-        receivingSeqNum++;
-        receivingSeqNum = receivingSeqNum % 2;
-    }
-    else if (packet.checksum == 1 && packet.seqnum == ((receivingSeqNum + 1) % 2))
-    {
-        printf("\n B_input:-Sending the ack %d",receivingSeqNum + 1);
-        receivingPkt.acknum = receivingSeqNum + 1;
-        receivingPkt.checksum=1;
-        tolayer3(1,receivingPkt);
-    }
+   int receivingCheckSum = 0;
+   int ackCheckSum = 0;
+   receivingCheckSum=in_cksum(packet.payload,20); 
+   receivingCheckSum += packet.seqnum;
+   
+   switch(state)
+   {
+       
+       case 0 :
+                if (packet.checksum == receivingCheckSum && packet.seqnum == receivingSeqNum)
+                {
+                        printf("\nState 0\n");
+                        printf("\nB_input:-The packet received from A is not corrupted and has correct seq no %d\n",receivingSeqNum);
+                        tolayer5(1,packet.payload);
+                        ackPkt.acknum=receivingSeqNum;
+                        ackCheckSum = ackPkt.acknum + 5;
+                        ackPkt.checksum = ackCheckSum ;
+                        printf("\nB_input:-Sending ack %d",receivingSeqNum);
+                        tolayer3(1,ackPkt);
+                        oncethrough=1;
+                        state++;
+                }
+                else if (packet.checksum != receivingCheckSum || packet.seqnum == receivingSeqNum + 1)
+                {
+                        printf("\nState 0\n");
+                        printf("\n B_input:-Wrong seqNo. so Sending the ack %d",receivingSeqNum + 1);
+                        ackPkt.acknum = receivingSeqNum + 1;
+                        ackCheckSum = ackPkt.acknum + 5;
+                        ackPkt.checksum = ackCheckSum ;
+                        if(oncethrough == 1)
+                        {
+                                tolayer3(1,ackPkt);
+                        }
+                }   
+                break;
+                
+       case 1 :
+                if (packet.checksum == receivingCheckSum && packet.seqnum == receivingSeqNum + 1)
+                {
+                        printf("\nState 1\n");
+                        printf("\nB_input:-The packet received from A is not corrupted and has correct seq no %d\n",receivingSeqNum);
+                        tolayer5(1,packet.payload);
+                        ackPkt.acknum=receivingSeqNum + 1;
+                        ackCheckSum = ackPkt.acknum + 5;
+                        ackPkt.checksum = ackCheckSum ;
+                        printf("\nB_input:-Sending ack %d",receivingSeqNum + 1);
+                        tolayer3(1,ackPkt);
+                        state = 0;
+                }
+                else if ( packet.checksum != receivingCheckSum || packet.seqnum == receivingSeqNum )
+                {
+                        printf("\nState 1\n");
+                        printf("\n B_input:-Wrong seqNo. so Sending the ack %d",receivingSeqNum );
+                        ackPkt.acknum = receivingSeqNum;
+                        ackCheckSum = ackPkt.acknum + 5;
+                        ackPkt.checksum = ackCheckSum;
+                        tolayer3(1,ackPkt);
+                }   
+                break;
+                
+           
+   }
     //printf("%d\n%d\n%s",packet.checksum,packet.seqnum,packet.payload);
 }
 
