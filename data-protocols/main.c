@@ -45,6 +45,13 @@ struct pkt {
 
 /********* STUDENTS WRITE THE NEXT SEVEN ROUTINES *********/
 
+    
+    /*THIS IS AB*/
+    
+    int A_toLayer4Count = 0;
+    int A_toLayer3Count = 0;
+    int B_tolayer5Count = 0;
+    int B_tolayer4Count = 0;
 
 int in_cksum(char *addr, int len)
 {
@@ -85,6 +92,7 @@ int in_cksum(char *addr, int len)
 A_output(message)
   struct msg message;
 {
+    A_toLayer4Count++;
     int i;
     int sendingCheckSum=0;
     sendingCheckSum = in_cksum(message.data,20);
@@ -98,8 +106,9 @@ A_output(message)
                 sending_pkt.payload[i] = message.data[i];
     
     tolayer3(0,sending_pkt);
+    A_toLayer3Count++;
     printf("\nA_output:-Packet with sequence no %d sent to layer 3\n",sendingSeqNumCopy);
-    starttimer(0,100.0);
+    starttimer(0,15.0);
 
 }
 
@@ -135,7 +144,8 @@ A_timerinterrupt()
 {
     printf("\n Inside A's timerInterrupt\n ");
     tolayer3(0,sending_pkt);
-    starttimer(0,100.0);
+    A_toLayer3Count++;
+    starttimer(0,15.0);
 }  
 
 /* the following routine will be called once (only) before any other */
@@ -153,6 +163,7 @@ int receivingSeqNum = 0;
 struct pkt ackPkt;
 int oncethrough=0;
 int state=0;
+//int tolayer5Count=0;
 B_input(packet)
   struct pkt packet;
 {
@@ -160,7 +171,7 @@ B_input(packet)
    int ackCheckSum = 0;
    receivingCheckSum=in_cksum(packet.payload,20); 
    receivingCheckSum += packet.seqnum;
-   
+   B_tolayer4Count++;
    switch(state)
    {
        
@@ -170,6 +181,8 @@ B_input(packet)
                         printf("\nState 0\n");
                         printf("\nB_input:-The packet received from A is not corrupted and has correct seq no %d\n",receivingSeqNum);
                         tolayer5(1,packet.payload);
+                        B_tolayer5Count++;
+			//tolayer5Count++;
                         ackPkt.acknum=receivingSeqNum;
                         ackCheckSum = ackPkt.acknum + 5;
                         ackPkt.checksum = ackCheckSum ;
@@ -198,6 +211,7 @@ B_input(packet)
                         printf("\nState 1\n");
                         printf("\nB_input:-The packet received from A is not corrupted and has correct seq no %d\n",receivingSeqNum);
                         tolayer5(1,packet.payload);
+			B_tolayer5Count++;
                         ackPkt.acknum=receivingSeqNum + 1;
                         ackCheckSum = ackPkt.acknum + 5;
                         ackPkt.checksum = ackCheckSum ;
@@ -361,6 +375,14 @@ int ncorrupt;              /* number corrupted by media*/
 
 terminate:
    printf(" Simulator terminated at time %f\n after sending %d msgs from layer5\n",time,nsim);
+   printf("Protocol: [AB]\n");
+   printf("%d of packets sent from the Application Layer of Sender A\n",A_toLayer4Count); 
+   printf("%d of packets sent from the Transport Layer of Sender A\n",A_toLayer3Count);
+   printf("%d packets received at the Transport layer of receiver B\n",B_tolayer4Count);
+   printf("%d of packets received at the Application layer of receiver B\n", B_tolayer5Count);
+   printf("Total time: %f time units\n",time);
+  // printf("Total time: %0.6lf seconds\n",(tEndUpload - tStartUpload));
+   printf("Throughput = %f packets/time units\n",(float)B_tolayer5Count/time);
 return 0;
    /*****************************************************************************************/
    /* Add your results here!!! *********************/
