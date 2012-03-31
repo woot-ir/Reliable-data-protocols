@@ -52,7 +52,13 @@ struct pkt {
     int A_toLayer3Count = 0;
     int B_tolayer5Count = 0;
     int B_tolayer4Count = 0;
-
+/**
+ * This is the function which takes in the string and the length . calculates the 
+ * checksum based on the adding each character .
+ * @param addr
+ * @param len
+ * @return 
+ */
 int in_cksum(char *addr, int len)
 {
     int nleft = len;
@@ -88,13 +94,18 @@ int in_cksum(char *addr, int len)
     int sendingSeqNum=0;
     int sendingSeqNumCopy=0;
     
-/* called from layer 5, passed the data to be sent to other side */
+    /**
+     * called from layer 5, passed the data to be sent to other side
+     * @param message
+     * @return 
+     */
 A_output(message)
   struct msg message;
 {
     A_toLayer4Count++;
     int i;
     int sendingCheckSum=0;
+    /*Create a packet and send it to layer 3*/
     sendingCheckSum = in_cksum(message.data,20);
     sending_pkt.checksum=sendingCheckSum + sendingSeqNum;
     sending_pkt.seqnum=sendingSeqNum;
@@ -118,7 +129,11 @@ B_output(message)  /* need be completed only for extra credit */
 
 }
 
-/* called from layer 3, when a packet arrives for layer 4 */
+  /**
+   * called from layer 3, when a packet arrives for layer 4 
+   * @param packet
+   * @return 
+   */
 A_input(packet)
   struct pkt packet;
 {
@@ -139,7 +154,10 @@ A_input(packet)
     }
 }
 
-/* called when A's timer goes off */
+  /**
+   * called when A's timer goes off 
+   * @return 
+   */
 A_timerinterrupt()
 {
     printf("\n Inside A's timerInterrupt\n ");
@@ -158,12 +176,18 @@ A_init()
 
 /* Note that with simplex transfer from a-to-B, there is no B_output() */
 
-/* called from layer 3, when a packet arrives for layer 4 at B*/
+/* */
 int receivingSeqNum = 0;
 struct pkt ackPkt;
 int oncethrough=0;
 int state=0;
 //int tolayer5Count=0;
+
+/**
+ * called from layer 3, when a packet arrives for layer 4 at B
+ * @param packet
+ * @return 
+ */
 B_input(packet)
   struct pkt packet;
 {
@@ -209,7 +233,7 @@ B_input(packet)
                 if (packet.checksum == receivingCheckSum && packet.seqnum == receivingSeqNum + 1)
                 {
                         printf("\nState 1\n");
-                        printf("\nB_input:-The packet received from A is not corrupted and has correct seq no %d\n",receivingSeqNum);
+                        printf("\nB_input:-The packet received from A is not corrupted and has correct seq no %d\n",receivingSeqNum + 1);
                         tolayer5(1,packet.payload);
 			B_tolayer5Count++;
                         ackPkt.acknum=receivingSeqNum + 1;
